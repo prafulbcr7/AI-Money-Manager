@@ -1,15 +1,21 @@
 package com.java.aimoneymanager.service;
 
+import com.java.aimoneymanager.dto.AuthDTO;
 import com.java.aimoneymanager.dto.ProfileDTO;
 import com.java.aimoneymanager.entity.ProfileEntity;
 import com.java.aimoneymanager.repo.ProfileRepo;
+import com.java.aimoneymanager.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -19,6 +25,12 @@ public class ProfileService {
     private final ProfileRepo profileRepo;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+
+    private final JwtUtil jwtUtil;
+
+    @Value("${LOCALHOST_URL}")
+    private String localHostUrl;
 
     public ProfileDTO registerProfile(ProfileDTO profileDTO) {
 
@@ -26,7 +38,7 @@ public class ProfileService {
         newProfile.setActivationToken(UUID.randomUUID().toString());
         newProfile = profileRepo.save(newProfile);
 
-        String activationLink = "http://localhost:8080/api/v1.0/activate?token=" + newProfile.getActivationToken();
+        String activationLink = localHostUrl+"/api/v1.0/activate?token=" + newProfile.getActivationToken();
         String subject = "Activate your AI Money Manager Account.";
         String body = "Click the below following link to activate your account:- "+ activationLink;
         emailService.sendEmail(newProfile.getEmail(), subject, body);
@@ -92,6 +104,21 @@ public class ProfileService {
         }
 
         return mapProfileEntityToProfileDTO(currentUser);
+    }
+
+    public Map<String, Object> authenticateUserAndGenerateToken(AuthDTO authDTO) {
+         try {
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(authDTO.getEmail(), authDTO.getPassword()));
+            // Generate JWT TOken now
+             String jwtToken = jwtUtil.generateJwtToken(authDTO.getEmail());
+             return Map.of(
+                     "token", jwtToken,
+                     "user", getPublicProfile(authDTO.getEmail())
+             );
+
+         } catch (Exception e) {
+             throw new RuntimeException("Invalid Email And Password");
+         }
     }
 
 }

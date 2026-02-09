@@ -15,7 +15,7 @@ import java.util.Collections;
 @RequiredArgsConstructor
 public class AppUserDetailsService implements UserDetailsService {
 
-    private ProfileRepo profileRepo;
+    private final ProfileRepo profileRepo;
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
